@@ -60,7 +60,10 @@ class baseLine1:
         random_state : int
             Controls the randomness of the estimator.
         """
-        self.models = [DecisionTreeClassifierWrapper(max_depth, random_state) for _ in range(11)]
+        # self.models = [DecisionTreeClassifierWrapper(max_depth, random_state) for _ in range(11)]
+        self.models = {}
+        self.max_depth = max_depth
+        self.random_state = random_state
 
         self.__preprocess = Preprocess.Preprocess(r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.feats.csv",
                       r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.labels.0.csv",
@@ -98,9 +101,47 @@ class baseLine1:
         return binary_series.to_frame(name=f'contains_{target_value}')
 
     def fit(self):
-        print(self.__preprocess.get_metastases())
+        dict = self.__preprocess.get_metastases()
+
+        for key, val in dict.items():
+            lables = self.mark_rows_with_value(val)
+            self.models[val] = DecisionTreeClassifierWrapper(self.max_depth, self.random_state)
+            self.models[val].fit(self.X_train, lables)
+
+    def predict(self) -> pd.DataFrame:
+        """
+        Predicts metastasis labels for the given test data using all trained models.
+
+        Returns:
+        --------
+        pd.DataFrame
+            A DataFrame with one column 'Predicted Metastases' where each cell contains a list of metastasis names.
+        """
+        X = self.X_test
+
+        if not self.models:
+            raise ValueError("No trained models found. Run fit() before predict().")
+
+        metastases_dict = self.__preprocess.get_metastases()
+        id_to_name = {v: k for k, v in metastases_dict.items()}  # reverse mapping: int -> name
+
+        # Initialize a list of empty lists for each row
+        predictions_by_row = [[] for _ in range(len(X))]
+
+        # Predict for each metastasis and collect labels
+        for name, val in metastases_dict.items():
+            if val in self.models:
+                preds = self.models[val].predict(X)
+                for i, pred in enumerate(preds):
+                    if pred == 1:
+                        predictions_by_row[i].append(name)
+
+        # Replace empty lists with ['__EMPTY__']
+        final_predictions = [row if row else ['__EMPTY__'] for row in predictions_by_row]
+        return pd.DataFrame({'Predicted Metastases': final_predictions}, index=X.index)
 
 
 if __name__ == '__main__':
     b = baseLine1()
     b.fit()
+    print(b.predict().head(50))
