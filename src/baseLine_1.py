@@ -1,3 +1,5 @@
+from idlelib.iomenu import errors
+
 from sklearn.tree import DecisionTreeClassifier
 import Preprocess
 import pandas as pd
@@ -205,6 +207,28 @@ class baseLine1:
 
         return total_errors
 
+    def loss2(self, X, y):
+        pred_y = self.predict(X)
+
+        errors = 0
+
+        for i in range(len(y)):
+            true_val = y.iloc[i]
+            pred_val = pred_y.iloc[i]
+
+            # בדיקת אורך
+            if len(true_val) != len(pred_val):
+                errors += 1
+            # אם האורכים שווים, בדיקה האם תכולת המערכים שווה
+            else:
+                for j in range(len(true_val)):
+                    if true_val.iloc[j] != pred_val.iloc[j]:
+                        errors += 1
+
+            # elif true_val != pred_val:
+            #     errors += 1
+        return errors
+
 
 if __name__ == '__main__':
     b = baseLine1()
@@ -220,4 +244,4 @@ if __name__ == '__main__':
     print("***************************************")
     print(X_test.shape)
 
-    print(b.loss(X_test, y_test))
+    print(b.loss2(X_test, y_test))
