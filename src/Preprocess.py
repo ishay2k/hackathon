@@ -7,7 +7,7 @@ from datetime import datetime
 class Preprocess:
 
     def __init__(self, filepath1, filepath2, filepath3):
-        self.__data = pd.read_csv(filepath1, encoding="utf-8")
+        self.__data = pd.read_csv(filepath1, encoding="utf-8", dtype={9: str, 21: str, 24: str})
         self.__labels_0 = pd.read_csv(filepath2)
         self.__labels_1 = pd.read_csv(filepath3)
 
@@ -594,3 +594,39 @@ class Preprocess:
 
     def get_labels_1(self):
         return self.__labels_1
+
+
+    def encode_dataframe(self) -> pd.DataFrame:
+        encoded_df = self.__data.copy()
+
+        for col in encoded_df.columns:
+            try:
+                encoded_df[col] = pd.to_numeric(encoded_df[col], errors='raise')
+                encoded_df[col] = encoded_df[col].astype('Int64')
+            except:
+                # עמודה לא נומרית – נבצע המרה ל־int לפי ערכים ייחודיים
+                col_series = encoded_df[col].astype(str).str.strip().str.lower()
+                is_unknown = col_series.str.contains("unknown|unk|nan|לא ידוע")
+
+                # מיפוי של כל ערך ל־int, פרט ל־unknown
+                unique_vals = col_series[~is_unknown].unique()
+                mapping = {val: i for i, val in enumerate(unique_vals)}
+                col_series = col_series.map(mapping)
+                col_series[is_unknown] = -999
+
+                encoded_df[col] = col_series.astype('Int64')
+
+        return encoded_df
+
+# if __name__ == '__main__':
+#     data = Preprocess(
+#         r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.feats.csv",
+#         r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.labels.0.csv",
+#         r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.labels.1.csv"
+#         )
+#
+#     print(data.get_data()['Stage'].value_counts())
+#     print("***************************************")
+#     new_data = data.encode_dataframe()
+#     print(new_data['Stage'].value_counts())
+
