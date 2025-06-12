@@ -308,11 +308,20 @@ def main():
         X_train_filtered, X_test_filtered, Y_train, Y_test
     )
 
+    params = {'n_estimators': 300, 'num_leaves': 31, 'max_depth': 7, 'learning_rate': 0.05}
     test_preprocessor = Preprocess(
         r"../train_test_splits/test.feats.csv",
         r"../train_test_splits/train.labels.0.csv",
         r"../train_test_splits/train.labels.1.csv"
     )
+
+    model = OneVsRestClassifier(
+        LGBMClassifier(**params, random_state=42, verbose=-1)
+    )
+    mlb = MultiLabelBinarizer()
+    Y = mlb.fit_transform(Y_raw.iloc[:, 0])
+    model.fit(X, Y)
+
     X_test = test_preprocessor.encode_dataframe()
     predict_and_save_test_results(best_model, X_test)
 
