@@ -30,6 +30,7 @@ class Preprocess:
 
         self.preProcess()
 
+
     def clean_column_names(self):
         """
         מנקה את שמות העמודות כך שנשאר רק החלק באנגלית (אם יש).
@@ -651,7 +652,6 @@ class Preprocess:
 
         # Save to self.__metastases
         self.metastases = value_to_int.copy()
-
 
         # Replace each list with encoded integers
         def encode_list(lst):
