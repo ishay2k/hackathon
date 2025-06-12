@@ -24,8 +24,8 @@ def load_and_prepare_data():
         r"../train_test_splits/train.labels.1.csv"
     )
 
-    X = preprocessor.get_data()
-    Y = preprocessor.get_labels_0()
+    X = preprocessor.encode_dataframe()
+    Y = preprocessor.encode_lable_0()
 
     # feats_path = 'train.feats.csv'
     # labels_path = 'train.labels.0.csv'
@@ -121,25 +121,44 @@ def compare_model_variants(X_train, X_val, Y_train, Y_val):
         plt.tight_layout()
         plt.show()
 
+from sklearn.preprocessing import MultiLabelBinarizer
+
 def main():
     """
     Loads the data, splits it, performs feature selection and compares model variants.
+    Uses MultiLabelBinarizer to handle multi-label classification correctly.
     """
-    # Load data
-    X, Y = load_and_prepare_data()
+    # Load features and raw labels
+    X, Y_raw = load_and_prepare_data()  # Y_raw is a DataFrame with list-like entries
 
-    # Split into training and validation sets
-    X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.2, random_state=42)
+    # Split BEFORE encoding so alignment with X is preserved
+    X_train, X_val, Y_train_raw, Y_val_raw = train_test_split(
+        X, Y_raw, test_size=0.2, random_state=42
+    )
 
-    # Feature selection
+    # Apply MultiLabelBinarizer to handle lists like [1, 2]
+    mlb = MultiLabelBinarizer()
+    Y_train = mlb.fit_transform(Y_train_raw.iloc[:, 0])
+    Y_val = mlb.transform(Y_val_raw.iloc[:, 0])
+
+    # Feature selection using label 0's model
     important_features = get_important_features(X_train, Y_train)
 
-    # Filter by important features
-    X_train_filtered = X_train[important_features]
-    X_val_filtered = X_val[important_features]
+    # # Filter by important features
+    # X_train_filtered = X_train[important_features]
+    # X_val_filtered = X_val[important_features]
+
+    if len(important_features) == 0:
+        print("⚠️ No important features found. Using all features.")
+        X_train_filtered = X_train
+        X_val_filtered = X_val
+    else:
+        X_train_filtered = X_train[important_features]
+        X_val_filtered = X_val[important_features]
 
     # Compare model variants
     compare_model_variants(X_train_filtered, X_val_filtered, Y_train, Y_val)
+
 
 if __name__ == "__main__":
     main()
