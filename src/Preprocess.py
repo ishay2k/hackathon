@@ -30,7 +30,6 @@ class Preprocess:
         self.fix_margin_type()
 
         self.preProcess()
-        print(self.__data["KI67 protein"].value_counts())
 
     def clean_column_names(self):
         """
