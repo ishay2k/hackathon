@@ -8,6 +8,9 @@ def load_data():
     Loads full training data and test data (for final submission only).
     Adds a synthetic random feature for consistency with feature selection.
     """
+
+
+    ############# TODO: need to fix this so that it uses preprocess #############################
     X_train = pd.read_csv("train.feats.csv")
     Y_train = pd.read_csv("train.labels.0.csv")
     X_test = pd.read_csv("test.feats.csv")

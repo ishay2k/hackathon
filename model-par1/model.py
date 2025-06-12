@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from lightgbm import LGBMClassifier
+print("✅ LightGBM is working!")
 from sklearn.multiclass import OneVsRestClassifier
 import matplotlib.pyplot as plt
 from sklearn.metrics import f1_score
@@ -17,12 +18,21 @@ def load_and_prepare_data():
     Returns the feature matrix and label matrix.
     """
 
-    feats_path = 'train.feats.csv'
-    labels_path = 'train.labels.0.csv'
+    preprocessor = Preprocess(
+        r"train_test_splits/train.feats.csv",
+        r"train_test_splits/train.labels.0.csv",
+        r"train_test_splits/train.labels.1.csv"
+    )
 
-    # Load features and labels
-    X = pd.read_csv(feats_path)
-    Y = pd.read_csv(labels_path)
+    X = preprocessor.get_data()
+    Y = preprocessor.get_labels_0()
+
+    # feats_path = 'train.feats.csv'
+    # labels_path = 'train.labels.0.csv'
+    #
+    # # Load features and labels
+    # X = pd.read_csv(feats_path)
+    # Y = pd.read_csv(labels_path)
 
     # Add random noise feature
     X["Random_Feature"] = np.random.rand(len(X))
