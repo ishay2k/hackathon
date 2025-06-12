@@ -23,11 +23,8 @@ def load_and_prepare_data():
     Shuffles the dataset to ensure randomness.
     Returns the feature matrix and label matrix.
     """
-
-
     all_train = preprocessor.encode_dataframe()
     all_lables = preprocessor.encode_lable_0()
-
     return all_train, all_lables
 
 # def get_important_features(X_train, Y_train):
@@ -54,7 +51,6 @@ def load_and_prepare_data():
 #     print(f"Using {len(important_features)} important features")
 #
 #     return important_features
-
 
 def top_k_predictions(y_proba, k=3, threshold=0.2):
     """
@@ -120,24 +116,78 @@ def map_values_in_list_column(df: pd.DataFrame) -> pd.DataFrame:
     df_copy[column_name] = df_copy[column_name].apply(map_and_clean)
     return df_copy
 
-
 def _predict(model, X):
     pred_y = model.predict(X)
     pred_y = top_k_predictions(pred_y, k=3, threshold=0.2)
     converted_y = convert_binary_df_to_label_list(pd.DataFrame(pred_y))
     converted_y = map_values_in_list_column(converted_y)
-    # print(pd.DataFrame(converted_y).head(50))
     return pred_y, converted_y
 
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.metrics import make_scorer
 
-def compare_model_variants(X_train, X_val, Y_train, Y_val):
+def tune_baseline_hyperparameters(X_train, X_val, Y_train, Y_val, n_iter=10, cv=2):
+    """
+    Performs Randomized Search over baseline LightGBM hyperparameters using macro F1 as the metric.
+    Trains the best model and evaluates it on the validation set.
+    Parameters:
+        - X_train, Y_train: training data
+        - X_val, Y_val: validation data
+        - n_iter: number of random parameter combinations to try
+        - cv: number of cross-validation folds
+    Returns:
+        - best_model: the trained model with best hyperparameters
+        - best_params: the dictionary of best parameters
+    """
+    print(f"\n🎯 Starting baseline hyperparameter tuning (RandomizedSearchCV, {n_iter} iterations, {cv}-fold)...")
+
+    param_dist = {
+        'estimator__n_estimators': [100, 200, 300, 400],
+        'estimator__num_leaves': [31, 63, 127],
+        'estimator__learning_rate': [0.1, 0.05, 0.03],
+        'estimator__max_depth': [5, 7, 9, -1]
+    }
+
+    macro_scorer = make_scorer(f1_score, average='macro', zero_division=0)
+
+    base_model = OneVsRestClassifier(LGBMClassifier(random_state=42, verbose=-1))
+
+    search = RandomizedSearchCV(
+        estimator=base_model,
+        param_distributions=param_dist,
+        scoring=macro_scorer,
+        cv=cv,
+        n_iter=n_iter,
+        n_jobs=-1,
+        verbose=1,
+        random_state=42
+    )
+
+    search.fit(X_train, Y_train)
+
+    print("✅ Best parameters found:", search.best_params_)
+
+    # Evaluate best model on validation set
+    best_model = search.best_estimator_
+    preds_val, _ = _predict(best_model, X_val)
+    macro_val = f1_score(Y_val, preds_val, average='macro', zero_division=0)
+    micro_val = f1_score(Y_val, preds_val, average='micro', zero_division=0)
+
+    print(f"🎯 Tuned Baseline - Macro F1 on Val: {macro_val:.4f}")
+    print(f"🎯 Tuned Baseline - Micro F1 on Val: {micro_val:.4f}")
+
+    return best_model, search.best_params_
+
+from sklearn.preprocessing import MultiLabelBinarizer
+
+def compare_model_variants(X_train, X_val, Y_train, Y_val, tuned_baseline_params=None):
     """
     Trains and compares underfit, baseline, and overfit model variants using F1 scores.
-    Suppresses LightGBM warnings and avoids sklearn UndefinedMetricWarnings.
+    Allows overriding the baseline model with tuned hyperparameters.
     """
     configs = {
         'Underfit': {'n_estimators': 10, 'num_leaves': 8, 'max_depth': 3},
-        'Baseline': {'n_estimators': 100, 'num_leaves': 31},
+        'Baseline': tuned_baseline_params or {'n_estimators': 300, 'num_leaves': 31, 'max_depth': 7, 'learning_rate': 0.05},
         'Overfit': {'n_estimators': 1000, 'num_leaves': 512, 'min_child_samples': 1}
     }
 
@@ -151,19 +201,11 @@ def compare_model_variants(X_train, X_val, Y_train, Y_val):
         )
         model.fit(X_train, Y_train)
 
-
-        # preds_train = model.predict(X_train)
-        # preds_train = top_k_predictions(preds_train, k=3, threshold=0.2)
-        preds_train, converted_preds_train = _predict(model, X_train)
-        # print(np.sum(preds_train, axis=1).max())
+        preds_train, _ = _predict(model, X_train)
+        preds_val, _ = _predict(model, X_val)
 
         preds_train = pd.DataFrame(preds_train)
-        # preds_val = model.predict(X_val)
-        # preds_val = top_k_predictions(preds_val, k=3, threshold=0.2)
-        preds_val, converted_preds_val = _predict(model, X_val)
-
-        # print(f"val = {np.sum(preds_val, axis=1).max()}")
-
+        preds_val = pd.DataFrame(preds_val)
 
         macro_train = f1_score(Y_train, preds_train, average='macro', zero_division=0)
         macro_val = f1_score(Y_val, preds_val, average='macro', zero_division=0)
@@ -197,53 +239,45 @@ def compare_model_variants(X_train, X_val, Y_train, Y_val):
         plt.tight_layout()
         plt.show()
 
-from sklearn.preprocessing import MultiLabelBinarizer
-
 def main():
     """
     Loads the data, splits it, performs feature selection and compares model variants.
     Uses MultiLabelBinarizer to handle multi-label classification correctly.
     """
 
-
     # Load features and raw labels
     X, Y_raw = load_and_prepare_data()  # Y_raw is a DataFrame with list-like entries
 
-
-    X_temp, X_side, y_temp, y_side = train_test_split(X,
-                                                      Y_raw,
-                                                      test_size=0.6,
-                                                      random_state=42)
-
-    # פיצול ה-40% הנותרים ל-20% train ו-20% test
-    X_train, X_val, Y_train_raw, Y_val_raw = train_test_split(X_temp, y_temp,
-                                                        test_size=0.5,
-                                                        random_state=42)
-
+    # שלב 1: פיצול ל־60% train, 20% hyperparameter tuning, 20% test
+    X_train, X_temp, Y_train_raw, Y_temp_raw = train_test_split(X, Y_raw, test_size=0.4, random_state=42)
+    X_hyper, X_test, Y_hyper_raw, Y_test_raw = train_test_split(X_temp, Y_temp_raw, test_size=0.5, random_state=42)
 
     # Apply MultiLabelBinarizer to handle lists like [1, 2]
     mlb = MultiLabelBinarizer()
     Y_train = mlb.fit_transform(Y_train_raw.iloc[:, 0])
-    Y_val = mlb.transform(Y_val_raw.iloc[:, 0])
+    Y_hyper = mlb.transform(Y_hyper_raw.iloc[:, 0])
+    Y_test = mlb.transform(Y_test_raw.iloc[:, 0])
 
     # Feature selection using label 0's model
     # important_features = get_important_features(X_train, Y_train)
 
     # Filter by important features
     X_train_filtered = X_train
-    X_val_filtered = X_val
+    X_hyper_filtered = X_hyper
+    X_test_filtered = X_test
 
-    # if len(important_features) == 0:
-    #     print("⚠️ No important features found. Using all features.")
-    #     X_train_filtered = X_train
-    #     X_val_filtered = X_val
-    # else:
-    #     X_train_filtered = X_train[important_features]
-    #     X_val_filtered = X_val[important_features]
+    # שלב 2: טיונינג על קבוצת hyper בלבד
+    # tuned_model, best_params = tune_baseline_hyperparameters(X_train_filtered, X_hyper_filtered, Y_train, Y_hyper)
+    #
+    # print(f"🎯 Best tuned model parameters: {best_params}")
 
-    # Compare model variants
-    compare_model_variants(X_train_filtered, X_val_filtered, Y_train, Y_val)
-
-
+    # שלב 3: השוואת מודלים על קבוצת test לפי ההיפר־פרמטרים של הבייסליין
+    # compare_model_variants(
+    #     X_train_filtered, X_test_filtered, Y_train, Y_test,
+    #     tuned_baseline_params={key.replace("estimator__", ""): val for key, val in best_params.items()}
+    # )
+    compare_model_variants(
+        X_train_filtered, X_test_filtered, Y_train, Y_test
+    )
 if __name__ == "__main__":
     main()
