@@ -264,7 +264,7 @@ def compare_model_variants(X_train, X_val, Y_train, Y_val, tuned_baseline_params
         ax.grid(True)
         plt.tight_layout()
         plt.show()
-        return models[1]  # Return the baseline model for further use
+    return models[1]  # Return the baseline model for further use
 
 def main():
     """
