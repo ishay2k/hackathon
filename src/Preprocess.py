@@ -12,6 +12,7 @@ class Preprocess:
         self.__data = pd.read_csv(filepath1, encoding="utf-8", dtype={9: str, 21: str, 24: str})
         self.__labels_0 = pd.read_csv(filepath2)
         self.__labels_1 = pd.read_csv(filepath3)
+        self.metastases = {}
 
         self.clean_column_names()
         self.drop_id()
@@ -597,6 +598,9 @@ class Preprocess:
     def get_labels_1(self):
         return self.__labels_1
 
+    def get_metastases(self):
+        return self.metastases
+
 
     def encode_dataframe(self) -> pd.DataFrame:
         encoded_df = self.__labels_0.copy()
@@ -631,27 +635,43 @@ class Preprocess:
         pd.DataFrame
             A new DataFrame with the same structure, but the specified column contains lists of integers.
         """
+
         # Step 1: Parse strings to actual lists
         column_name = self.__labels_0.columns[0]
         df_copy = self.__labels_0.copy()
         df_copy[column_name] = df_copy[column_name].apply(ast.literal_eval)
 
-        # Step 2: Collect all unique values
+        # Collect unique values
         unique_values = set()
         for item_list in df_copy[column_name]:
             unique_values.update(item_list)
 
-        # Step 3: Assign unique integers
-        value_to_int = {val: idx + 1 for idx, val in
-                        enumerate(sorted(unique_values))}  # Start from 1 to reserve 0 for empty
+        # Assign integers
+        value_to_int = {val: idx + 1 for idx, val in enumerate(sorted(unique_values))}  # 1-based indexing
         value_to_int["__EMPTY__"] = 0
 
-        # Step 4: Replace each list with encoded integers
+        # Store mapping in self.Metastases
+        self.metastases = value_to_int.copy()
+
+        # Encode each list
         def encode_list(lst):
             if not lst:
                 return [value_to_int["__EMPTY__"]]
             return [value_to_int[val] for val in lst]
 
         df_copy[column_name] = df_copy[column_name].apply(encode_list)
-
         return df_copy
+
+if __name__ == '__main__':
+    data = Preprocess(
+        r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.feats.csv",
+        r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.labels.0.csv",
+        r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.labels.1.csv"
+        )
+
+    n = data.encode_lable_0()
+    column_name = n.columns[0]
+    max_value = n[column_name].explode().max()
+    print(f"המספר הכי גבוה שקודד הוא: {max_value}")
+    print(data.get_metastases())
+
