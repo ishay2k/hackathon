@@ -2,9 +2,17 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 import os
+import Preprocess
 
 
 class Unsupervised:
+    def __init__(self):
+        self.__data = data = Preprocess.Preprocess(r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.feats.csv",
+                      r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.labels.0.csv",
+                      r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.labels.1.csv"
+                      )
+
+
     def kmeans_cluster_and_plot(df: pd.DataFrame, column_name: str, n_clusters: int, output_path: str):
         """
         Applies KMeans clustering to a single column of a DataFrame and saves a plot of the clustering result.
@@ -50,3 +58,9 @@ class Unsupervised:
         plt.savefig(output_path)
         plt.close()
 
+    def cluster(self):
+        self.kmeans_cluster_and_plot(self.get_data(), "stage", 6, r"C:\Users\hilib\PycharmProjects\IML\Hackathon\hackathon\src\plots")
+
+
+if __name__ == '__main__':
+    u = Unsupervised()

@@ -594,4 +594,3 @@ class Preprocess:
 
     def get_labels_1(self):
         return self.__labels_1
-
