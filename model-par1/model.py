@@ -5,6 +5,7 @@ from sklearn.multiclass import OneVsRestClassifier
 import matplotlib.pyplot as plt
 from sklearn.metrics import f1_score
 from sklearn.model_selection import train_test_split
+from sklearn.utils import shuffle
 
 preprocessing_data_path = 'data/preprocessed_data.csv' #TODO update with actual path hili+ishay
 label_path = 'train_test_splits/train.labels.0.csv'
@@ -18,6 +19,26 @@ X_test = pd.read_csv(test_data_path)
 
 # Add a random feature for demonstration
 X["Random_Feature"] = np.random.rand(len(X))
+# Add the random feature to test data
+X_test["Random_Feature"] = np.random.rand(len(X_test))
+
+X, Y = shuffle(X, Y, random_state=42)  # Shuffle the data to ensure randomness
+train_size = int(0.2 * len(X))  # 20% for training
+chunk_size = int(0.05 * len(X))  # Split into 5 chunks
+
+X_train = X.iloc[:train_size]
+Y_train = Y.iloc[:train_size]
+
+X_remaining = X.iloc[train_size:]
+Y_remaining = Y.iloc[train_size:]
+
+val_chunks = []
+for i in range(5):
+    start = i * chunk_size
+    end = start + chunk_size
+    X_chunk = X_remaining.iloc[start:end]
+    Y_chunk = Y_remaining.iloc[start:end]
+    val_chunks.append((X_chunk, Y_chunk))
 
 # Initialize the OneVsRestClassifier with LGBMClassifier
 model = OneVsRestClassifier(LGBMClassifier(n_estimators=100,num_leaves=255, random_state=42))
