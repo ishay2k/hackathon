@@ -12,6 +12,7 @@ class Preprocess:
         self.__data = pd.read_csv(filepath1, encoding="utf-8", dtype={9: str, 21: str, 24: str})
         self.__labels_0 = pd.read_csv(filepath2)
         self.__labels_1 = pd.read_csv(filepath3)
+        self.metastases = {}
 
         self.clean_column_names()
         self.drop_id()
@@ -597,6 +598,9 @@ class Preprocess:
     def get_labels_1(self):
         return self.__labels_1
 
+    def get_metastases(self):
+        return self.metastases
+
 
     def encode_dataframe(self) -> pd.DataFrame:
         encoded_df = self.__data.copy()
@@ -625,28 +629,31 @@ class Preprocess:
         Encodes string-based lists in a single column into lists of unique integers.
         Shared values will be assigned the same integer across all rows.
         Empty lists will be replaced with [0].
+        Also saves the mapping in self.__metastases.
 
         Returns:
         --------
         pd.DataFrame
             A new DataFrame with the same structure, but the specified column contains lists of integers.
         """
-        # Step 1: Parse strings to actual lists
         column_name = self.__labels_0.columns[0]
         df_copy = self.__labels_0.copy()
         df_copy[column_name] = df_copy[column_name].apply(ast.literal_eval)
 
-        # Step 2: Collect all unique values
+        # Collect all unique values
         unique_values = set()
         for item_list in df_copy[column_name]:
             unique_values.update(item_list)
 
-        # Step 3: Assign unique integers
-        value_to_int = {val: idx + 1 for idx, val in
-                        enumerate(sorted(unique_values))}  # Start from 1 to reserve 0 for empty
+        # Assign unique integers
+        value_to_int = {val: idx + 1 for idx, val in enumerate(sorted(unique_values))}
         value_to_int["__EMPTY__"] = 0
 
-        # Step 4: Replace each list with encoded integers
+        # Save to self.__metastases
+        self.metastases = value_to_int.copy()
+
+
+        # Replace each list with encoded integers
         def encode_list(lst):
             if not lst:
                 return [value_to_int["__EMPTY__"]]
@@ -655,3 +662,4 @@ class Preprocess:
         df_copy[column_name] = df_copy[column_name].apply(encode_list)
 
         return df_copy
+
