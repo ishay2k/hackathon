@@ -146,12 +146,9 @@ def main():
     # Feature selection using label 0's model
     important_features = get_important_features(X_train, Y_train)
 
-    # # Filter by important features
-    # X_train_filtered = X_train[important_features]
-    # X_val_filtered = X_val[important_features]
-
-    X_train_filtered = X_train
-    X_val_filtered = X_val
+    # Filter by important features
+    X_train_filtered = X_train[important_features]
+    X_val_filtered = X_val[important_features]
 
     # if len(important_features) == 0:
     #     print("⚠️ No important features found. Using all features.")
