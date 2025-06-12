@@ -4,6 +4,7 @@ from lightgbm import LGBMClassifier
 from sklearn.multiclass import OneVsRestClassifier
 import matplotlib.pyplot as plt
 from sklearn.metrics import f1_score
+from sklearn.model_selection import train_test_split
 
 preprocessing_data_path = 'data/preprocessed_data.csv' #TODO update with actual path hili+ishay
 label_path = 'train_test_splits/train.labels.0.csv'
@@ -51,6 +52,38 @@ predictions_df.to_csv('predictions.csv', index=False) #TODO open the file
 train_predictions = model.predict(X)
 print("Micro F1:", f1_score(Y, train_predictions, average="micro"))
 print("Macro F1:", f1_score(Y, train_predictions, average="macro"))
+
+
+#get list of important features
+important_features = importance_series[importance_series > threshold].index.tolist()
+
+# filter the original data to keep only important features
+X_filtered = X[important_features]
+# Add the random feature to test data
+X_test["Random_Feature"] = np.random.rand(len(X_test))
+# Ensure test data has the same columns
+X_test_filtered = X_test.reindex(columns=important_features, fill_value=0)
+
+# split the data into train and test sets
+X_train, X_val, Y_train, Y_val = train_test_split(X_filtered, Y, test_size=0.2, random_state=42)
+
+# Initialize the OneVsRestClassifier with LGBMClassifier
+model_filtered = OneVsRestClassifier(LGBMClassifier(n_estimators=100, num_leaves=255, random_state=42))
+# Fit the model with filtered features
+model_filtered.fit(X_train, Y_train)
+
+# Produce predictions on the validation set
+val_predictions = model_filtered.predict(X_val)
+# Check the predictions quality on the validation set
+print("Micro F1 (Filtered Features):", f1_score(Y_val, val_predictions, average="micro"))
+print("Macro F1 (Filtered Features):", f1_score(Y_val, val_predictions, average="macro"))
+
+test_preds = model_filtered.predict(X_test_filtered)
+# Save the filtered predictions to a CSV file
+filtered_predictions_df = pd.DataFrame(test_preds, columns=Y.columns)
+filtered_predictions_df.to_csv('filtered_predictions.csv', index=False)  #TODO open the file
+print("Filtered predictions saved to 'filtered_predictions.csv'")
+
 
 
 
