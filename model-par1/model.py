@@ -70,7 +70,7 @@ def get_important_features(X_train, Y_train):
 def compare_model_variants(X_train, X_val, Y_train, Y_val):
     """
     Trains and compares underfit, baseline, and overfit model variants using F1 scores.
-    Plots F1 scores for train and validation sets.
+    Suppresses LightGBM warnings and avoids sklearn UndefinedMetricWarnings.
     """
     configs = {
         'Underfit': {'n_estimators': 10, 'num_leaves': 8, 'max_depth': 3},
@@ -83,16 +83,18 @@ def compare_model_variants(X_train, X_val, Y_train, Y_val):
 
     for name, params in configs.items():
         print(f"\n🔍 Training {name} model with params: {params}")
-        model = OneVsRestClassifier(LGBMClassifier(**params, random_state=42))
+        model = OneVsRestClassifier(
+            LGBMClassifier(**params, random_state=42, verbose=-1)
+        )
         model.fit(X_train, Y_train)
 
         preds_train = model.predict(X_train)
         preds_val = model.predict(X_val)
 
-        macro_train = f1_score(Y_train, preds_train, average='macro')
-        macro_val = f1_score(Y_val, preds_val, average='macro')
-        micro_train = f1_score(Y_train, preds_train, average='micro')
-        micro_val = f1_score(Y_val, preds_val, average='micro')
+        macro_train = f1_score(Y_train, preds_train, average='macro', zero_division=0)
+        macro_val = f1_score(Y_val, preds_val, average='macro', zero_division=0)
+        micro_train = f1_score(Y_train, preds_train, average='micro', zero_division=0)
+        micro_val = f1_score(Y_val, preds_val, average='micro', zero_division=0)
 
         results_macro[name] = (macro_train, macro_val)
         results_micro[name] = (micro_train, micro_val)
@@ -148,13 +150,16 @@ def main():
     # X_train_filtered = X_train[important_features]
     # X_val_filtered = X_val[important_features]
 
-    if len(important_features) == 0:
-        print("⚠️ No important features found. Using all features.")
-        X_train_filtered = X_train
-        X_val_filtered = X_val
-    else:
-        X_train_filtered = X_train[important_features]
-        X_val_filtered = X_val[important_features]
+    X_train_filtered = X_train
+    X_val_filtered = X_val
+
+    # if len(important_features) == 0:
+    #     print("⚠️ No important features found. Using all features.")
+    #     X_train_filtered = X_train
+    #     X_val_filtered = X_val
+    # else:
+    #     X_train_filtered = X_train[important_features]
+    #     X_val_filtered = X_val[important_features]
 
     # Compare model variants
     compare_model_variants(X_train_filtered, X_val_filtered, Y_train, Y_val)
