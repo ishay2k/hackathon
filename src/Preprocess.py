@@ -9,10 +9,10 @@ from sklearn.preprocessing import OneHotEncoder
 
 class Preprocess:
 
-    def __init__(self, filepath1, filepath2, filepath3):
-        self.__data = pd.read_csv(filepath1, encoding="utf-8", dtype={9: str, 21: str, 24: str, 20: str, 23: str})
-        self.__labels_0 = pd.read_csv(filepath2)
-        self.__labels_1 = pd.read_csv(filepath3)
+    def __init__(self, dataset_path, label_0_path, label_1_path):
+        self.__data = pd.read_csv(dataset_path, encoding="utf-8", dtype={9: str, 21: str, 24: str, 20: str, 23: str})
+        self.__labels_0 = pd.read_csv(label_0_path)
+        self.__labels_1 = pd.read_csv(label_1_path)
         self.metastases = {}
 
         self.clean_column_names()
