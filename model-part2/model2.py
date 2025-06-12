@@ -5,6 +5,10 @@ from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
+from lightgbm import record_evaluation
+from lightgbm import LGBMRegressor, record_evaluation
+
+
 
 
 # === Load and prepare data ===
@@ -67,12 +71,22 @@ def select_important_features(X_train, Y_train):
 
 
 # === Model training and evaluation ===
-def train_and_evaluate_regression_model(X_train, X_val, Y_train, Y_val, params):
+def train_and_evaluate_regression_model(X_train, X_val, Y_train, Y_val, params,record_curve = False):
     """
     Trains a filtered regression model with given parameters and evaluates on the validation set.
+    If record_curve is True, returns the evals_result_ to plot training/validation loss curves.
     """
     model = LGBMRegressor(**params, random_state=42)
     model.fit(X_train, Y_train)
+
+    evals_result = {}
+    model.fit(
+        X_train,
+        Y_train,
+        eval_set=[(X_train, Y_train), (X_val, Y_val)],
+        eval_metric='l2',
+        callbacks=[record_evaluation(evals_result)],
+    )
 
     # Predict on validation set
     val_preds = model.predict(X_val)
@@ -80,7 +94,7 @@ def train_and_evaluate_regression_model(X_train, X_val, Y_train, Y_val, params):
     # Evaluate model using Mean Squared Error (lower is better)
     mse = mean_squared_error(Y_val, val_preds)
     print(f"Validation MSE: {mse:.4f}")
-    return model, mse
+    return model, mse, evals_result if record_curve else None
 
 
 # === Predict and save ===
@@ -132,6 +146,36 @@ def grid_search_regression(X_train_filtered, X_val_filtered, Y_train, Y_val):
     print("Saved grid search results to grid_search_results.csv")
     return best_model
 
+# === Diagnostic comparison of model types ===
+def compare_model_behaviors(X_train, X_val, Y_train, Y_val):
+    """
+    Compares underfit, baseline, and overfit models by plotting their training/validation loss curves.
+    """
+    configs = {
+        'Underfit': {'n_estimators': 10, 'num_leaves': 8, 'max_depth': 3},
+        'Baseline': {'n_estimators': 100, 'num_leaves': 31},
+        'Overfit': {'n_estimators': 1000, 'num_leaves': 512, 'min_child_samples': 1}
+    }
+
+    plt.figure(figsize=(8, 5))
+    for name, params in configs.items():
+        print(f"\n🔍 Training {name} model...")
+        _, _, evals_result = train_and_evaluate_regression_model(
+            X_train, X_val, Y_train, Y_val, params, record_curve=True
+        )
+        val_loss = evals_result['valid_1']['l2']
+        plt.plot(val_loss, label=f"{name}")
+
+    plt.title("Validation MSE vs Boosting Iterations")
+    plt.xlabel("Boosting Iterations")
+    plt.ylabel("Validation MSE")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+
+
 # === Main pipeline ===
 def main():
     """
@@ -152,6 +196,9 @@ def main():
 
     # Align test data to same feature space
     X_test_filtered = X_test.reindex(columns=important_features, fill_value=0)
+
+
+    compare_model_behaviors(X_train_filtered, X_val_filtered, Y_train, Y_val)
 
     # Train and tune model
     best_model = grid_search_regression(X_train_filtered, X_val_filtered, Y_train, Y_val)
