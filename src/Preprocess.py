@@ -595,9 +595,3 @@ class Preprocess:
     def get_labels_1(self):
         return self.__labels_1
 
-
-if __name__ == '__main__':
-    data = Preprocess(r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.feats.csv",
-                      r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.labels.0.csv",
-                      r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.labels.1.csv"
-                      )
