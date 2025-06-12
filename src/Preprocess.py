@@ -4,6 +4,7 @@ import re
 from datetime import datetime
 import ast
 
+from sklearn.preprocessing import OneHotEncoder
 
 
 class Preprocess:
@@ -29,6 +30,7 @@ class Preprocess:
         self.fix_margin_type()
 
         self.preProcess()
+        print(self.__data["KI67 protein"].value_counts())
 
 
     def clean_column_names(self):
@@ -316,14 +318,16 @@ class Preprocess:
 
         def filter_n(value):
             if pd.isna(value):
-                return value  # keep NaN
+                # return value  # keep NaN
+                return "unknown"
             if isinstance(value, str):
                 if value.startswith(('N1', 'N2', 'N3')):
                     return value
                 if value in valid_prefixes:
                     return value
                 # Set invalid ones to NaN (like N4)
-                return np.nan
+                return "unknown"
+                # return np.nan
             return value
 
         self.__data["N -lymph nodes mark (TNM)"] = self.__data["N -lymph nodes mark (TNM)"].apply(filter_n)
@@ -580,9 +584,11 @@ class Preprocess:
 
         # er - converting to 1,0,-1 from positive, unknown, negative
         self.__data["er"] = self.__data["er"].apply(self.map_er_category)
+        # self.__data["er"] = self.__data["er"].astype('Int64')
 
         # pr
         self.__data["pr"] = self.__data["pr"].apply(self.map_pr_category)
+        # self.__data["pr"] = self.__data["pr"].astype('Int64')
 
         # surgery before or after-Actual activity
         self.__data = self.__data.drop("Activity date", axis=1)
@@ -625,6 +631,22 @@ class Preprocess:
 
         return encoded_df
 
+    def create_dummies(self):
+        df = self.__data.copy()
+        cat_cols = df.select_dtypes(include=['object']).columns.tolist()
+
+        self.ohe = OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore')
+        ohe_array = self.ohe.fit_transform(df[cat_cols])
+
+        # Create DataFrame with new columns
+        ohe_cols = self.ohe.get_feature_names_out(cat_cols)
+        df_ohe = pd.DataFrame(ohe_array, columns=ohe_cols, index=df.index)
+
+        # Drop original categorical columns and concat encoded
+        df = df.drop(columns=cat_cols)
+        df = pd.concat([df, df_ohe], axis=1)
+
+        return df
     def encode_lable_0(self) -> pd.DataFrame:
         """
         Encodes string-based lists in a single column into lists of unique integers.
@@ -662,4 +684,9 @@ class Preprocess:
         df_copy[column_name] = df_copy[column_name].apply(encode_list)
 
         return df_copy
+
+if __name__ == '__main__':
+    b = Preprocess(r"C:\Users\ishay\IML\hackathon\train_test_splits\train.feats.csv",
+                   r"C:\Users\ishay\IML\hackathon\train_test_splits\train.labels.0.csv",
+                   r"C:\Users\ishay\IML\hackathon\train_test_splits\train.labels.1.csv")
 
