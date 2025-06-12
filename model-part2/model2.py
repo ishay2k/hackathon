@@ -148,14 +148,14 @@ def main():
     # Load features and raw labels
     X, Y_raw = load_and_prepare_data()  # Y_raw is a DataFrame with list-like entries
 
-    X_temp, X_side, y_temp, y_side = train_test_split(X,
-                                                      Y_raw,
-                                                      test_size=0.6,
-                                                      random_state=42)
-
-    # פיצול ה-40% הנותרים ל-20% train ו-20% test
-    X_train, X_val, Y_train, Y_val = train_test_split(X_temp, y_temp,
-                                                              test_size=0.5,
+    # X_temp, X_side, y_temp, y_side = train_test_split(X,
+    #                                                   Y_raw,
+    #                                                   test_size=0.6,
+    #                                                   random_state=42)
+    #
+    # # פיצול ה-40% הנותרים ל-20% train ו-20% test
+    X_train, X_val, Y_train, Y_val = train_test_split(X, Y_raw,
+                                                              test_size=0.2,
                                                               random_state=42)
 
     # Align test data to same feature space
@@ -165,7 +165,7 @@ def main():
     # best_model = grid_search_regression(X_train, X_val, Y_train, Y_val)
 
     params = {'n_estimators': n_estimators, 'num_leaves': num_leaves}
-    best_model, mse, _ = train_and_evaluate_regression_model(X_train, X_val, Y_train, Y_val, params)
+    # best_model, mse, _ = train_and_evaluate_regression_model(X_train, X_val, Y_train, Y_val, params)
 
     # Predict and save results
     test_preprocessor = Preprocess(
@@ -173,6 +173,10 @@ def main():
         r"../train_test_splits/train.labels.0.csv",
         r"../train_test_splits/train.labels.1.csv"
     )
+
+    best_model = LGBMRegressor(**params, random_state=42)
+    best_model.fit(X,Y_raw)
+
     X_test = test_preprocessor.encode_dataframe()
     predict_and_save_test_results(best_model, X_test)
 
