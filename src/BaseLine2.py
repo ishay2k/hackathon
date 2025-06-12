@@ -10,11 +10,11 @@ class BaseLint2:
         Initializes the linear regression model.
         """
         self.model = LinearRegression()
-        self.__preprocess = Preprocess.Preprocess(r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.feats.csv",
-                      r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.labels.0.csv",
-                      r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.labels.1.csv"
-                      )
-
+        self.__preprocess = Preprocess.Preprocess(
+            r"C:\Users\ishay\IML\hackathon\train_test_splits\train.feats.csv",
+            r"C:\Users\ishay\IML\hackathon\train_test_splits\train.labels.0.csv",
+            r"C:\Users\ishay\IML\hackathon\train_test_splits\train.labels.1.csv"
+        )
         self.train = self.__preprocess.encode_dataframe()
         self.lable = self.__preprocess.get_labels_1()
 
