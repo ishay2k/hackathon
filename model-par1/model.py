@@ -180,6 +180,30 @@ def tune_baseline_hyperparameters(X_train, X_val, Y_train, Y_val, n_iter=10, cv=
 
 from sklearn.preprocessing import MultiLabelBinarizer
 
+# === Predict and save ===
+def predict_and_save_test_results(model, X_test_filtered, filename="predictions_part1.csv"):
+    """
+    Makes predictions on the test set using a multi-label classification model
+    and saves them to a CSV file.
+
+    Parameters:
+    -----------
+    model : sklearn classifier
+        Trained OneVsRestClassifier model.
+    X_test_filtered : pd.DataFrame
+        Preprocessed feature matrix for the test set.
+    filename : str
+        Name of the output CSV file.
+    """
+    # Perform prediction and convert to readable format
+    predictions, label_lists = _predict(model, X_test_filtered)
+
+    # Save readable label list format (e.g., ['label1', 'label2'])
+    label_lists.to_csv(filename, index=False)
+    print(f"✅ Saved predictions to {filename}")
+
+
+
 def compare_model_variants(X_train, X_val, Y_train, Y_val, tuned_baseline_params=None):
     """
     Trains and compares underfit, baseline, and overfit model variants using F1 scores.
@@ -193,12 +217,14 @@ def compare_model_variants(X_train, X_val, Y_train, Y_val, tuned_baseline_params
 
     results_macro = {}
     results_micro = {}
-
+    models = []
     for name, params in configs.items():
         print(f"\n🔍 Training {name} model with params: {params}")
         model = OneVsRestClassifier(
             LGBMClassifier(**params, random_state=42, verbose=-1)
         )
+        #save the model
+        models.append(model)
         model.fit(X_train, Y_train)
 
         preds_train, _ = _predict(model, X_train)
@@ -238,6 +264,7 @@ def compare_model_variants(X_train, X_val, Y_train, Y_val, tuned_baseline_params
         ax.grid(True)
         plt.tight_layout()
         plt.show()
+        return models[1]  # Return the baseline model for further use
 
 def main():
     """
@@ -266,6 +293,7 @@ def main():
     X_hyper_filtered = X_hyper
     X_test_filtered = X_test
 
+     ####### TODO - dont delete this comment ########
     # שלב 2: טיונינג על קבוצת hyper בלבד
     # tuned_model, best_params = tune_baseline_hyperparameters(X_train_filtered, X_hyper_filtered, Y_train, Y_hyper)
     #
@@ -276,8 +304,18 @@ def main():
     #     X_train_filtered, X_test_filtered, Y_train, Y_test,
     #     tuned_baseline_params={key.replace("estimator__", ""): val for key, val in best_params.items()}
     # )
-    compare_model_variants(
+    best_model = compare_model_variants(
         X_train_filtered, X_test_filtered, Y_train, Y_test
     )
+
+    test_preprocessor = Preprocess(
+        r"../train_test_splits/test.feats.csv",
+        r"../train_test_splits/train.labels.0.csv",
+        r"../train_test_splits/train.labels.1.csv"
+    )
+    X_test = test_preprocessor.encode_dataframe()
+    predict_and_save_test_results(best_model, X_test)
+
+
 if __name__ == "__main__":
     main()
