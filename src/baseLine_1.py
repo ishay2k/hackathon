@@ -70,15 +70,15 @@ class baseLine1:
                       r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.labels.1.csv"
                       )
 
-        self.train = self.__preprocess.encode_dataframe()
-        self.lable = self.__preprocess.encode_lable_0()
+        self.all_train = self.__preprocess.encode_dataframe()
+        self.all_lables = self.__preprocess.encode_lable_0()
 
 
-    def get_train(self):
-        return self.train
+    def get_all_train(self):
+        return self.all_train
 
-    def get_lable(self):
-        return self.lable
+    def get_all_lables(self):
+        return self.all_lables
 
     def get__preprocess(self):
         return self.__preprocess
@@ -113,7 +113,7 @@ class baseLine1:
 
     def map_values_in_list_column(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        ממירה כל מספר במערך לפי המילון שניתן.
+        ממירה כל מספר במערך למחרוזת לפי מילון המרה.
 
         Parameters:
         -----------
@@ -126,12 +126,13 @@ class baseLine1:
             DataFrame עם אותם אינדקסים, כשהערכים הומרו לפי המילון.
         """
         mapping_dict = self.__preprocess.get_metastases()
+        inverse_dict = {v: k for k, v in mapping_dict.items()}  # הפוך את המילון
 
         column_name = df.columns[0]
         df_copy = df.copy()
 
         df_copy[column_name] = df_copy[column_name].apply(
-            lambda lst: [mapping_dict.get(val, val) for val in lst]
+            lambda lst: [inverse_dict.get(val, val) for val in lst]
         )
         return df_copy
 
@@ -170,24 +171,53 @@ class baseLine1:
         result_series = pred_df.apply(lambda row: [int(col) for col in row.index if row[col] == 1], axis=1)
 
         # החזר DataFrame עם עמודה אחת
-        return pd.DataFrame({'predicted_metastases': result_series})
+        p = pd.DataFrame({'predicted_metastases': result_series})
+        return p
 
-    def loss(self, X):
+    def loss(self, X, y) -> int:
+        """
+        מחשבת את כמות הטעויות הכוללת, כאשר כל טעות היא איבר שלא נמצא בשתי הרשימות.
+
+        Parameters:
+        -----------
+        X : pd.DataFrame
+            מאפייני הקלט.
+        y : pd.DataFrame
+            תוויות אמת, עמודה אחת עם רשימות של מספרים.
+
+        Returns:
+        --------
+        int
+            סך כל האיברים השונים בין התחזיות לאמת.
+        """
         pred_y = self.predict(X)
+        print(pred_y.head(20))
 
+        pred_lists = pred_y.iloc[:, 0]
+        true_lists = y.iloc[:, 0]
+
+        total_errors = 0
+        for pred, true in zip(pred_lists, true_lists):
+            pred_set = set(pred)
+            true_set = set(true)
+            diff = pred_set.symmetric_difference(true_set)
+            total_errors += len(diff)
+
+        return total_errors
 
 
 if __name__ == '__main__':
     b = baseLine1()
     # פיצול ראשוני ל-60% שמורות בצד ו-40% לפיצול נוסף
-    X_temp, X_side, y_temp, y_side = train_test_split(b.get_train(), b.get_lable(), test_size=0.6, random_state=42)
+    X_temp, X_side, y_temp, y_side = train_test_split(b.get_all_train(), b.get_all_lables(), test_size=0.6, random_state=42)
 
     # פיצול ה-40% הנותרים ל-20% train ו-20% test
     X_train, X_test, y_train, y_test = train_test_split(X_temp, y_temp, test_size=0.5,
                                                                             random_state=42)
 
     b.fit(X_train, y_train)
-    print(b.predict(X_test).head(20))
-    print("%%%%%%%%%%%%%%%%%%%%%%%%%%")
+    print(y_test.head(20))
+    print("***************************************")
+    print(X_test.shape)
 
-    print(b.map_values_in_list_column(y_test.head(20)))
+    print(b.loss(X_test, y_test))
