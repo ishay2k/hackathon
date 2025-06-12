@@ -1,9 +1,10 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 import os
 import Preprocess
-
 
 class Unsupervised:
     def __init__(self):
@@ -12,55 +13,65 @@ class Unsupervised:
                       r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.labels.1.csv"
                       )
 
-
-    def kmeans_cluster_and_plot(df: pd.DataFrame, column_name: str, n_clusters: int, output_path: str):
+    def kmeans_cluster_and_plot(self, df: pd.DataFrame, n_clusters: int, output_path: str):
         """
-        Applies KMeans clustering to a single column of a DataFrame and saves a plot of the clustering result.
+        Applies KMeans clustering to all numeric columns in the DataFrame
+        and saves a 2D PCA plot of the clustering result.
 
         Parameters:
         -----------
         df : pd.DataFrame
             The DataFrame containing the data.
-        column_name : str
-            The name of the column to cluster.
         n_clusters : int
             The number of clusters to use in KMeans.
         output_path : str
             The full path (including filename) where the plot will be saved.
         """
-        if column_name not in df.columns:
-            raise ValueError(f"Column '{column_name}' not found in DataFrame.")
 
-        # Drop NA and reshape
-        data = df[[column_name]].dropna()
+        # Select numeric columns only
+        # numeric_df = df.select_dtypes(include=['number']).dropna()
 
-        # Ensure it's numeric
-        data = pd.to_numeric(data[column_name], errors='coerce').dropna().to_frame()
+        # if numeric_df.empty:
+        #     raise ValueError("No numeric data available after dropping NA.")
+
+        # Normalize the data
+        scaler = StandardScaler()
+        scaled_data = scaler.fit_transform(df)
 
         # KMeans fitting
         kmeans = KMeans(n_clusters=n_clusters, random_state=0)
-        data['cluster'] = kmeans.fit_predict(data[[column_name]])
+        clusters = kmeans.fit_predict(scaled_data)
+
+        # Reduce to 2 dimensions using PCA for visualization
+        pca = PCA(n_components=2)
+        reduced_data = pca.fit_transform(scaled_data)
 
         # Plot
         plt.figure(figsize=(10, 6))
         for cluster_id in range(n_clusters):
-            cluster_data = data[data['cluster'] == cluster_id]
-            plt.scatter(cluster_data.index, cluster_data[column_name], label=f'Cluster {cluster_id}')
+            plt.scatter(
+                reduced_data[clusters == cluster_id, 0],
+                reduced_data[clusters == cluster_id, 1],
+                label=f'Cluster {cluster_id}'
+            )
 
-        plt.title(f'KMeans Clustering on {column_name}')
-        plt.xlabel('Index')
-        plt.ylabel(column_name)
+        plt.title('KMeans Clustering (PCA projection)')
+        plt.xlabel('PCA Component 1')
+        plt.ylabel('PCA Component 2')
         plt.legend()
         plt.tight_layout()
 
         # Save the plot
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         plt.savefig(output_path)
+        plt.show()
         plt.close()
 
     def cluster(self):
-        self.kmeans_cluster_and_plot(self.get_data(), "stage", 6, r"C:\Users\hilib\PycharmProjects\IML\Hackathon\hackathon\src\plots")
+        # print(self.__data.get_data().unique())
+        self.kmeans_cluster_and_plot(self.__data.get_data()[["M -metastases mark (TNM)", "Side"]], 3, r"C:\Users\hilib\PycharmProjects\IML\Hackathon\hackathon\src\plots")
 
 
 if __name__ == '__main__':
     u = Unsupervised()
+    u.cluster()
