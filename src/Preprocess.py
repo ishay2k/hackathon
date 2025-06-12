@@ -586,9 +586,11 @@ class Preprocess:
         # Actual activity
         self.__data["Actual activity"] = self.__data["Actual activity"].apply(self.map_actual_activity_category)
 
+    def get_data(self):
+        return self.__data
 
-if __name__ == '__main__':
-    data = Preprocess(r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.feats.csv",
-                      r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.labels.0.csv",
-                      r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.labels.1.csv"
-                      )
+    def get_labels_0(self):
+        return self.__labels_0
+
+    def get_labels_1(self):
+        return self.__labels_1
