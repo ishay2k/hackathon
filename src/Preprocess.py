@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import re
 from datetime import datetime
+import ast
+
 
 
 class Preprocess:
@@ -597,7 +599,7 @@ class Preprocess:
 
 
     def encode_dataframe(self) -> pd.DataFrame:
-        encoded_df = self.__data.copy()
+        encoded_df = self.__labels_0.copy()
 
         for col in encoded_df.columns:
             try:
@@ -618,14 +620,38 @@ class Preprocess:
 
         return encoded_df
 
-# if __name__ == '__main__':
-#     data = Preprocess(
-#         r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.feats.csv",
-#         r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.labels.0.csv",
-#         r"C:\Users\hilib\PycharmProjects\IML\hackathon\hackathon\train_test_splits\train.labels.1.csv"
-#         )
-#
-#     print(data.get_data()['Stage'].value_counts())
-#     print("***************************************")
-#     new_data = data.encode_dataframe()
-#     print(new_data['Stage'].value_counts())
+    def encode_lable_0(self) -> pd.DataFrame:
+        """
+        Encodes string-based lists in a single column into lists of unique integers.
+        Shared values will be assigned the same integer across all rows.
+        Empty lists will be replaced with [0].
+
+        Returns:
+        --------
+        pd.DataFrame
+            A new DataFrame with the same structure, but the specified column contains lists of integers.
+        """
+        # Step 1: Parse strings to actual lists
+        column_name = self.__labels_0.columns[0]
+        df_copy = self.__labels_0.copy()
+        df_copy[column_name] = df_copy[column_name].apply(ast.literal_eval)
+
+        # Step 2: Collect all unique values
+        unique_values = set()
+        for item_list in df_copy[column_name]:
+            unique_values.update(item_list)
+
+        # Step 3: Assign unique integers
+        value_to_int = {val: idx + 1 for idx, val in
+                        enumerate(sorted(unique_values))}  # Start from 1 to reserve 0 for empty
+        value_to_int["__EMPTY__"] = 0
+
+        # Step 4: Replace each list with encoded integers
+        def encode_list(lst):
+            if not lst:
+                return [value_to_int["__EMPTY__"]]
+            return [value_to_int[val] for val in lst]
+
+        df_copy[column_name] = df_copy[column_name].apply(encode_list)
+
+        return df_copy
