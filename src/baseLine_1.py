@@ -73,14 +73,17 @@ class baseLine1:
         self.train = self.__preprocess.encode_dataframe()
         self.lable = self.__preprocess.encode_lable_0()
 
-        # פיצול ראשוני ל-60% שמורות בצד ו-40% לפיצול נוסף
-        X_temp, X_side, y_temp, y_side = train_test_split(self.train, self.lable, test_size=0.6, random_state=42)
 
-        # פיצול ה-40% הנותרים ל-20% train ו-20% test
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42)
+    def get_train(self):
+        return self.train
 
+    def get_lable(self):
+        return self.lable
 
-    def mark_rows_with_value(self, target_value: int) -> pd.DataFrame:
+    def get__preprocess(self):
+        return self.__preprocess
+
+    def mark_rows_with_value(self, y, target_value: int) -> pd.DataFrame:
         """
         Returns a DataFrame of the same size, with 1 if the list in the row contains the target_value, else 0.
 
@@ -96,52 +99,95 @@ class baseLine1:
         pd.DataFrame
             A DataFrame with a single column of 0s and 1s, same index as the input.
         """
-        column_name = self.y_train.columns[0]
-        binary_series = self.y_train[column_name].apply(lambda lst: 1 if target_value in lst else 0)
+        column_name = y.columns[0]
+        binary_series = y[column_name].apply(lambda lst: 1 if target_value in lst else 0)
         return binary_series.to_frame(name=f'contains_{target_value}')
 
-    def fit(self):
+    def fit(self, X, y):
         dict = self.__preprocess.get_metastases()
 
         for key, val in dict.items():
-            lables = self.mark_rows_with_value(val)
+            lables = self.mark_rows_with_value(y, val)
             self.models[val] = DecisionTreeClassifierWrapper(self.max_depth, self.random_state)
-            self.models[val].fit(self.X_train, lables)
+            self.models[val].fit(X, lables)
 
-    def predict(self) -> pd.DataFrame:
+    def map_values_in_list_column(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Predicts metastasis labels for the given test data using all trained models.
+        ממירה כל מספר במערך לפי המילון שניתן.
+
+        Parameters:
+        -----------
+        df : pd.DataFrame
+            DataFrame עם עמודה אחת שמכילה מערכים של מספרים.
 
         Returns:
         --------
         pd.DataFrame
-            A DataFrame with one column 'Predicted Metastases' where each cell contains a list of metastasis names.
+            DataFrame עם אותם אינדקסים, כשהערכים הומרו לפי המילון.
         """
-        X = self.X_test
+        mapping_dict = self.__preprocess.get_metastases()
 
+        column_name = df.columns[0]
+        df_copy = df.copy()
+
+        df_copy[column_name] = df_copy[column_name].apply(
+            lambda lst: [mapping_dict.get(val, val) for val in lst]
+        )
+        return df_copy
+
+    def predict(self, X: pd.DataFrame) -> pd.DataFrame:
+        """
+        Predicts labels for the given data using all trained models.
+
+        Parameters:
+        -----------
+        X : pd.DataFrame
+            Feature matrix for prediction.
+
+        Returns:
+        --------
+        pd.DataFrame
+            A DataFrame with a single column, where each cell contains a list
+            of metastasis codes (ints) predicted to be present (value=1).
+        """
         if not self.models:
             raise ValueError("No trained models found. Run fit() before predict().")
 
-        metastases_dict = self.__preprocess.get_metastases()
-        id_to_name = {v: k for k, v in metastases_dict.items()}  # reverse mapping: int -> name
+        metastases_dict = self.__preprocess.get_metastases()  # {'LYM - Lymph nodes': 1, ...}
+        inverse_dict = {v: k for k, v in metastases_dict.items()}  # רק אם תרצי גם להפוך בעתיד
 
-        # Initialize a list of empty lists for each row
-        predictions_by_row = [[] for _ in range(len(X))]
+        predictions = {}
 
-        # Predict for each metastasis and collect labels
         for name, val in metastases_dict.items():
             if val in self.models:
                 preds = self.models[val].predict(X)
-                for i, pred in enumerate(preds):
-                    if pred == 1:
-                        predictions_by_row[i].append(name)
+                predictions[val] = preds  # שמור לפי המספר, לא לפי השם
 
-        # Replace empty lists with ['__EMPTY__']
-        final_predictions = [row if row else ['__EMPTY__'] for row in predictions_by_row]
-        return pd.DataFrame({'Predicted Metastases': final_predictions}, index=X.index)
+        # הפוך ל-DataFrame
+        pred_df = pd.DataFrame(predictions, index=X.index)
+
+        # המר כל שורה לרשימת המספרים שחזוי עבורם 1
+        result_series = pred_df.apply(lambda row: [int(col) for col in row.index if row[col] == 1], axis=1)
+
+        # החזר DataFrame עם עמודה אחת
+        return pd.DataFrame({'predicted_metastases': result_series})
+
+    def loss(self, X):
+        pred_y = self.predict(X)
+
 
 
 if __name__ == '__main__':
     b = baseLine1()
-    b.fit()
-    print(b.predict().head(50))
+    # פיצול ראשוני ל-60% שמורות בצד ו-40% לפיצול נוסף
+    X_temp, X_side, y_temp, y_side = train_test_split(b.get_train(), b.get_lable(), test_size=0.6, random_state=42)
+
+    # פיצול ה-40% הנותרים ל-20% train ו-20% test
+    X_train, X_test, y_train, y_test = train_test_split(X_temp, y_temp, test_size=0.5,
+                                                                            random_state=42)
+
+    b.fit(X_train, y_train)
+    print(b.predict(X_test).head(20))
+    print("%%%%%%%%%%%%%%%%%%%%%%%%%%")
+
+    print(b.map_values_in_list_column(y_test.head(20)))
