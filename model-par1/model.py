@@ -19,9 +19,9 @@ def load_and_prepare_data():
     """
 
     preprocessor = Preprocess(
-        r"train_test_splits/train.feats.csv",
-        r"train_test_splits/train.labels.0.csv",
-        r"train_test_splits/train.labels.1.csv"
+        r"../train_test_splits/train.feats.csv",
+        r"../train_test_splits/train.labels.0.csv",
+        r"../train_test_splits/train.labels.1.csv"
     )
 
     X = preprocessor.get_data()
