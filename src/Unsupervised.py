@@ -91,7 +91,7 @@ class Unsupervised:
     def cluster(self):
         # print(self.__data.get_data().unique())
         self.kmeans_cluster_and_plot(self.__data, 3,
-                                     r"C:\Users\ishay\IML\ackathon")
+                                     r"C:\Users\ishay\IML\hackathon")
 
 
 if __name__ == '__main__':
